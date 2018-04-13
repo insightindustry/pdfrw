@@ -470,6 +470,7 @@ class PdfReader(PdfDict):
         catalogname = PdfName.Catalog
         typename = PdfName.Type
         kidname = PdfName.Kids
+        OCProperties = PdfName.OCProperties
 
         try:
             result = []
@@ -484,6 +485,8 @@ class PdfReader(PdfDict):
                 elif nodetype == pagesname:
                     stack.extend(reversed(node[kidname]))
                 elif nodetype == catalogname:
+                    stack.append(node[pagesname])
+                elif nodetype == OCProperties:
                     stack.append(node[pagesname])
                 else:
                     log.error('Expected /Page or /Pages dictionary, got %s' %
@@ -618,6 +621,7 @@ class PdfReader(PdfDict):
                 source.obj_offsets = {}
                 trailer, is_stream = self.parsexref(source)
                 prev = trailer.Prev
+
                 if prev is None:
                     token = source.next()
                     if token != 'startxref' and not xref_list:

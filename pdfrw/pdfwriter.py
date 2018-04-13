@@ -254,6 +254,7 @@ class PdfWriter(object):
         self.fname = fname
         self.version = version
         self.compress = compress
+        self.OCGs = []
 
         if kwargs:
             for name, value in iteritems(kwargs):
@@ -286,6 +287,22 @@ class PdfWriter(object):
         killobj = self.killobj
         obj, new_obj = page, self.pagearray[-1]
         while obj is not None:
+            # Consolidate and add OCGs(Layers) from each page
+            if '/Resources' in obj:
+                if '/Properties' in obj['/Resources']:
+                    for ocg in obj['/Resources']['/Properties'].items():
+                        ind_ocg = IndirectPdfDict(
+                            Type=PdfName.OCG,
+                            Name=PdfString(ocg[1]['/Name'])
+                            )
+                        obj['/Resources']['/Properties'][ocg[0]] = ind_ocg
+                        chk_tog = True
+                        for chk_ocg in self.OCGs:
+                            if ind_ocg['/Name'] == chk_ocg['/Name']:
+                                obj['/Resources']['/Properties'][ocg[0]] = chk_ocg
+                                chk_tog = False
+                        if chk_tog:
+                            self.OCGs.append(ind_ocg)
             objid = id(obj)
             if objid in killobj:
                 break
@@ -317,7 +334,14 @@ class PdfWriter(object):
                     Type=PdfName.Pages,
                     Count=PdfObject(len(self.pagearray)),
                     Kids=self.pagearray
+                ),
+                OCProperties=IndirectPdfDict(
+                    OCGs=self.OCGs,
+                    D=PdfDict(
+                        Order=self.OCGs
+                    )
                 )
+
             )
         )
         # Make all the pages point back to the page dictionary and
